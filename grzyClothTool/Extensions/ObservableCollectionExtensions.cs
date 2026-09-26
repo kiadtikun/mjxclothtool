@@ -1,4 +1,5 @@
-﻿using grzyClothTool.Models;
+using grzyClothTool.Controls;
+using grzyClothTool.Models;
 using grzyClothTool.Models.Drawable;
 using grzyClothTool.Models.Texture;
 using System.Collections.Generic;
@@ -11,9 +12,8 @@ public static class ObservableCollectionExtensions
 {
     public static void Sort(this ObservableCollection<GDrawable> drawables, bool shouldReassignNumbers = false)
     {
-        var sorted = drawables.OrderBy(x => x.Sex)
-                              .ThenBy(x => x.Name)
-                              .ToList();
+        var comparer = new DrawableGroupComparer();
+        var sorted = drawables.OrderBy(x => x, comparer).ToList();
 
         if (shouldReassignNumbers)
         {
@@ -24,6 +24,7 @@ public static class ObservableCollectionExtensions
                 var key = (drawable.TypeNumeric, drawable.IsProp, drawable.Sex);
                 counters.TryGetValue(key, out var count);
                 drawable.Number = count;
+                drawable.Order = count;
                 drawable.SetDrawableName();
                 counters[key] = count + 1;
             }
@@ -44,10 +45,12 @@ public static class ObservableCollectionExtensions
     public static void ReassignNumbers(this ObservableCollection<GDrawable> drawables, GDrawable drawable)
     {
         int counter = 0;
+        var comparer = new DrawableGroupComparer();
 
-        foreach (var item in drawables.Where(x => x.IsProp == drawable.IsProp && x.Sex == drawable.Sex && x.TypeNumeric == drawable.TypeNumeric))
+        foreach (var item in drawables.Where(x => x.IsProp == drawable.IsProp && x.Sex == drawable.Sex && x.TypeNumeric == drawable.TypeNumeric).OrderBy(x => x, comparer))
         {
-            item.Number = counter++;
+            item.Number = counter;
+            item.Order = counter++;
             item.SetDrawableName();
         }
     }

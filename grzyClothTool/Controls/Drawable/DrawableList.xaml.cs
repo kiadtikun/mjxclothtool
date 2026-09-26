@@ -1,4 +1,4 @@
-﻿using grzyClothTool.Extensions;
+using grzyClothTool.Extensions;
 using grzyClothTool.Helpers;
 using grzyClothTool.Models.Drawable;
 using grzyClothTool.Models.Texture;
@@ -312,6 +312,7 @@ namespace grzyClothTool.Controls
                         liveView.LiveSortingProperties.Clear();
                         liveView.LiveSortingProperties.Add(nameof(GDrawable.Group));
                         liveView.LiveSortingProperties.Add(nameof(GDrawable.TypeName));
+                        liveView.LiveSortingProperties.Add(nameof(GDrawable.Order));
                         liveView.LiveSortingProperties.Add(nameof(GDrawable.Number));
                         liveView.IsLiveSorting = true;
                     }
@@ -957,7 +958,8 @@ namespace grzyClothTool.Controls
                                        x.Sex == droppedData.Sex && 
                                        x.TypeNumeric == droppedData.TypeNumeric &&
                                        x.Group == droppedData.Group)
-                            .OrderBy(x => x.Number)
+                            .OrderBy(x => x.Order)
+                            .ThenBy(x => x.Number)
                             .ToList();
 
                         int oldVisualIndex = sameTypeDrawables.IndexOf(droppedData);
@@ -996,8 +998,7 @@ namespace grzyClothTool.Controls
 
                         for (int i = 0; i < sameTypeDrawables.Count; i++)
                         {
-                            sameTypeDrawables[i].Number = i;
-                            sameTypeDrawables[i].SetDrawableName();
+                            sameTypeDrawables[i].Order = i;
                         }
 
                         LogHelper.Log($"Drawable '{droppedData.Name}' moved from position {oldVisualIndex} to {newVisualIndex}");
@@ -1071,12 +1072,18 @@ namespace grzyClothTool.Controls
     }
 
 
-    public class DrawableGroupComparer : System.Collections.IComparer
+    public class DrawableGroupComparer : System.Collections.IComparer, IComparer<GDrawable>
     {
         public int Compare(object x, object y)
         {
-            if (x is not GDrawable drawableX || y is not GDrawable drawableY)
-                return 0;
+            return Compare(x as GDrawable, y as GDrawable);
+        }
+
+        public int Compare(GDrawable drawableX, GDrawable drawableY)
+        {
+            if (ReferenceEquals(drawableX, drawableY)) return 0;
+            if (drawableX is null) return -1;
+            if (drawableY is null) return 1;
 
             string groupX = drawableX.Group;
             string groupY = drawableY.Group;
@@ -1091,7 +1098,7 @@ namespace grzyClothTool.Controls
                 if (groupComparison != 0)
                     return groupComparison;
 
-                // Within the same group, sort by gender (female first), then TypeName alphabetically, then by Number
+                // Within the same group, sort by gender (female first), then TypeName alphabetically, then by Order, then by Number
                 int genderComparison = drawableX.Sex.CompareTo(drawableY.Sex);
                 if (genderComparison != 0)
                     return genderComparison;
@@ -1099,6 +1106,10 @@ namespace grzyClothTool.Controls
                 int typeComparison = string.Compare(drawableX.TypeName, drawableY.TypeName, StringComparison.OrdinalIgnoreCase);
                 if (typeComparison != 0)
                     return typeComparison;
+
+                int orderComparison = drawableX.Order.CompareTo(drawableY.Order);
+                if (orderComparison != 0)
+                    return orderComparison;
 
                 return drawableX.Number.CompareTo(drawableY.Number);
             }
@@ -1111,7 +1122,7 @@ namespace grzyClothTool.Controls
             if (!hasGroupX && hasGroupY)
                 return 1;
 
-            // Neither has a group - sort by gender (female first), then TypeName alphabetically, then by Number
+            // Neither has a group - sort by gender (female first), then TypeName alphabetically, then by Order, then by Number
             int genderComparisonNoGroup = drawableX.Sex.CompareTo(drawableY.Sex);
             if (genderComparisonNoGroup != 0)
                 return genderComparisonNoGroup;
@@ -1119,6 +1130,10 @@ namespace grzyClothTool.Controls
             int typeComparisonNoGroup = string.Compare(drawableX.TypeName, drawableY.TypeName, StringComparison.OrdinalIgnoreCase);
             if (typeComparisonNoGroup != 0)
                 return typeComparisonNoGroup;
+
+            int orderComparisonNoGroup = drawableX.Order.CompareTo(drawableY.Order);
+            if (orderComparisonNoGroup != 0)
+                return orderComparisonNoGroup;
 
             return drawableX.Number.CompareTo(drawableY.Number);
         }

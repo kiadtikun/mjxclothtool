@@ -1,5 +1,6 @@
-﻿using CodeWalker.GameFiles;
+using CodeWalker.GameFiles;
 using CodeWalker.Utils;
+using grzyClothTool.Constants;
 using grzyClothTool.Helpers;
 using ImageMagick;
 using System;
@@ -297,9 +298,11 @@ public class GTexture : INotifyPropertyChanged
 
 
 
-    public string GetBuildName()
+    public string GetBuildName(int? overrideNumber = null)
     {
-        string name = $"{TypeName}_diff_{Number:D3}_{TxtLetter}";
+        int num = overrideNumber ?? Number;
+        string displayNumber = (num % GlobalConstants.MAX_DRAWABLES_IN_ADDON).ToString("D3");
+        string name = $"{TypeName}_diff_{displayNumber}_{TxtLetter}";
         return IsProp ? name : $"{name}_{(HasSkin ? "whi" : "uni")}";
     }
 

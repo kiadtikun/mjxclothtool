@@ -1,4 +1,4 @@
-﻿using CodeWalker.GameFiles;
+using CodeWalker.GameFiles;
 using grzyClothTool.Constants;
 using grzyClothTool.Controls;
 using grzyClothTool.Extensions;
@@ -200,6 +200,20 @@ public class GDrawable : INotifyPropertyChanged
         }
     }
     public string DisplayNumber => (Number % GlobalConstants.MAX_DRAWABLES_IN_ADDON).ToString("D3");
+
+    private int _order = -1;
+    public int Order
+    {
+        get => _order == -1 ? Number : _order;
+        set
+        {
+            if (_order != value)
+            {
+                _order = value;
+                OnPropertyChanged();
+            }
+        }
+    }
 
     private GDrawableDetails _details;
     public GDrawableDetails Details
@@ -607,6 +621,14 @@ public class GDrawable : INotifyPropertyChanged
         }
 
         OnPropertyChanged(nameof(Name));
+    }
+
+    public string GetBuildName(int? overrideNumber = null)
+    {
+        int num = overrideNumber ?? Number;
+        string displayNumber = (num % GlobalConstants.MAX_DRAWABLES_IN_ADDON).ToString("D3");
+        string name = $"{TypeName}_{displayNumber}";
+        return IsProp ? name : $"{name}_{(HasSkin ? "r" : "u")}";
     }
 
     public void ChangeDrawableType(string newType)

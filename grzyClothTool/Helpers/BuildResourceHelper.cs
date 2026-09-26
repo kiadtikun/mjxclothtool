@@ -1,7 +1,7 @@
-﻿using CodeWalker.GameFiles;
 using CodeWalker.GameFiles;
 using CodeWalker.Utils;
 using grzyClothTool.Constants;
+using grzyClothTool.Controls;
 using grzyClothTool.Models;
 using grzyClothTool.Models.Drawable;
 using grzyClothTool.Views;
@@ -70,6 +70,27 @@ public class BuildResourceHelper
         number ??= _number;
         return shouldUseNumber ? $"{_projectName}_{number:D2}" : _projectName;
     }
+
+    public static Dictionary<GDrawable, int> GetBuildNumberMap(IEnumerable<GDrawable> drawables)
+    {
+        var map = new Dictionary<GDrawable, int>();
+        var comparer = new DrawableGroupComparer();
+
+        var groups = drawables.GroupBy(d => (d.Sex, d.IsProp, d.TypeNumeric));
+        foreach (var group in groups)
+        {
+            var sorted = group.OrderBy(d => d, comparer).ToList();
+            if (sorted.Count == 0) continue;
+
+            int baseNumber = sorted.Min(d => d.Number);
+            for (int k = 0; k < sorted.Count; k++)
+            {
+                map[sorted[k]] = baseNumber + k;
+            }
+        }
+
+        return map;
+    }
     
 
     #region FiveM
@@ -81,9 +102,11 @@ public class BuildResourceHelper
         var projectName = GetProjectName(counter);
 
         var drawables = _addon.Drawables.Where(x => x.Sex == sex).ToList();
+        var buildNumberMap = GetBuildNumberMap(drawables);
+        var comparer = new DrawableGroupComparer();
         var drawableGroups = drawables.Select((x, i) => new { Index = i, Value = x })
-                                       .GroupBy(x => x.Value.Number / GlobalConstants.MAX_DRAWABLES_IN_ADDON)
-                                       .Select(x => x.Select(v => v.Value).OrderBy(d => d.Number).ToList())
+                                       .GroupBy(x => (buildNumberMap.TryGetValue(x.Value, out var bn) ? bn : x.Value.Number) / GlobalConstants.MAX_DRAWABLES_IN_ADDON)
+                                       .Select(x => x.Select(v => v.Value).OrderBy(d => d, comparer).ToList())
                                        .ToList();
 
         var streamDirectory = Path.Combine(_buildPath, "stream");
@@ -100,6 +123,8 @@ public class BuildResourceHelper
         {
             foreach (var d in group)
             {
+                int buildNumber = buildNumberMap.TryGetValue(d, out var bn) ? bn : d.Number;
+                string buildDrawableName = d.GetBuildName(buildNumber);
                 var tempYddPath = yddPathsDict[d];
 
                 var drawablePedName = d.IsProp ? $"{pedName}_p" : pedName;
@@ -108,26 +133,26 @@ public class BuildResourceHelper
                 Directory.CreateDirectory(folderPath);
                 
                 var prefix = RemoveInvalidChars($"{drawablePedName}_{projectName}^");
-                var finalPath = Path.Combine(folderPath, $"{prefix}{d.Name}{Path.GetExtension(d.FullFilePath)}");
+                var finalPath = Path.Combine(folderPath, $"{prefix}{buildDrawableName}{Path.GetExtension(d.FullFilePath)}");
                 fileOperations.Add(FileHelper.CopyAsync(tempYddPath, finalPath));
 
                 if (!string.IsNullOrEmpty(d.ClothPhysicsPath))
                 {
-                    fileOperations.Add(FileHelper.CopyAsync(d.FullClothPhysicsPath, Path.Combine(folderPath, $"{prefix}{d.Name}{Path.GetExtension(d.ClothPhysicsPath)}")));
+                    fileOperations.Add(FileHelper.CopyAsync(d.FullClothPhysicsPath, Path.Combine(folderPath, $"{prefix}{buildDrawableName}{Path.GetExtension(d.ClothPhysicsPath)}")));
                 }
 
                 if (!string.IsNullOrEmpty(d.FirstPersonPath))
                 {
                     //todo: this probably shouldn't be hardcoded to "_1", handle it when there is option to add more alternate drawable versions
-                    fileOperations.Add(FileHelper.CopyAsync(d.FullFirstPersonPath, Path.Combine(folderPath, $"{prefix}{d.Name}_1{Path.GetExtension(d.FirstPersonPath)}")));
+                    fileOperations.Add(FileHelper.CopyAsync(d.FullFirstPersonPath, Path.Combine(folderPath, $"{prefix}{buildDrawableName}_1{Path.GetExtension(d.FirstPersonPath)}")));
                     
-                    var name = $"{prefix}{d.Name}".Replace("^", "/");
+                    var name = $"{prefix}{buildDrawableName}".Replace("^", "/");
                     firstPersonFiles.Add(name);
                 }
 
                 foreach (var t in d.Textures)
                 {
-                    var buildName = RemoveInvalidChars(t.GetBuildName());
+                    var buildName = RemoveInvalidChars(t.GetBuildName(buildNumber));
                     var finalTexPath = Path.Combine(folderPath, $"{prefix}{buildName}.ytd");
 
                     byte[]? txtBytes = null;
@@ -357,9 +382,11 @@ public class BuildResourceHelper
         var projectName = GetProjectName(counter);
 
         var drawables = _addon.Drawables.Where(x => x.Sex == sex).ToList();
+        var buildNumberMap = GetBuildNumberMap(drawables);
+        var comparer = new DrawableGroupComparer();
         var drawableGroups = drawables.Select((x, i) => new { Index = i, Value = x })
-                                       .GroupBy(x => x.Value.Number / GlobalConstants.MAX_DRAWABLES_IN_ADDON)
-                                       .Select(x => x.Select(v => v.Value).ToList())
+                                       .GroupBy(x => (buildNumberMap.TryGetValue(x.Value, out var bn) ? bn : x.Value.Number) / GlobalConstants.MAX_DRAWABLES_IN_ADDON)
+                                       .Select(x => x.Select(v => v.Value).OrderBy(d => d, comparer).ToList())
                                        .ToList();
 
         // Prepare all directory paths first to minimize file system access
@@ -401,14 +428,16 @@ public class BuildResourceHelper
             fileOperations.Add(File.WriteAllBytesAsync(ymtPath, ymtBytes));
 
             foreach(var d in group) {
+                int buildNumber = buildNumberMap.TryGetValue(d, out var bn) ? bn : d.Number;
+                string buildDrawableName = d.GetBuildName(buildNumber);
                 var folderPath = d.IsProp ? thirdLevelPropFolder : thirdLevelFolder;
 
                 var tempYddPath = yddPathsDict[d];
-                fileOperations.Add(FileHelper.CopyAsync(tempYddPath, Path.Combine(folderPath, $"{d.Name}{Path.GetExtension(d.FullFilePath)}")));
+                fileOperations.Add(FileHelper.CopyAsync(tempYddPath, Path.Combine(folderPath, $"{buildDrawableName}{Path.GetExtension(d.FullFilePath)}")));
 
                 foreach(var t in d.Textures)
                 {
-                    var buildName = RemoveInvalidChars(t.GetBuildName());
+                    var buildName = RemoveInvalidChars(t.GetBuildName(buildNumber));
                     var finalTexPath = Path.Combine(folderPath, $"{buildName}{Path.GetExtension(t.FullFilePath)}");
 
                     if (t.IsOptimizedDuringBuild)
@@ -745,9 +774,11 @@ public class BuildResourceHelper
         var projectName = GetProjectName(counter);
 
         var drawables = _addon.Drawables.Where(x => x.Sex == sex).ToList();
+        var buildNumberMap = GetBuildNumberMap(drawables);
+        var comparer = new DrawableGroupComparer();
         var drawableGroups = drawables.Select((x, i) => new { Index = i, Value = x })
-                                       .GroupBy(x => x.Value.Number / GlobalConstants.MAX_DRAWABLES_IN_ADDON)
-                                       .Select(x => x.Select(v => v.Value).ToList())
+                                       .GroupBy(x => (buildNumberMap.TryGetValue(x.Value, out var bn) ? bn : x.Value.Number) / GlobalConstants.MAX_DRAWABLES_IN_ADDON)
+                                       .Select(x => x.Select(v => v.Value).OrderBy(d => d, comparer).ToList())
                                        .ToList();
 
         var yddPathsDict = await BatchResaveYdd(drawables, maxParallelism: 4, progress: _progress);
@@ -771,15 +802,17 @@ public class BuildResourceHelper
         {
             foreach (var d in group)
             {
+                int buildNumber = buildNumberMap.TryGetValue(d, out var bn) ? bn : d.Number;
+                string buildDrawableName = d.GetBuildName(buildNumber);
                 var tempYddPath = yddPathsDict[d];
                 var drawableBytes = File.ReadAllBytes(tempYddPath);
 
                 RpfDirectoryEntry folder = d.IsProp ? propsFolder : componentsFolder;            
-                RpfFile.CreateFile(folder, $"{d.Name}{Path.GetExtension(d.FullFilePath)}", drawableBytes);
+                RpfFile.CreateFile(folder, $"{buildDrawableName}{Path.GetExtension(d.FullFilePath)}", drawableBytes);
 
                 foreach (var t in d.Textures)
                 {
-                    var displayName = RemoveInvalidChars(t.GetBuildName());
+                    var displayName = RemoveInvalidChars(t.GetBuildName(buildNumber));
 
                     if (t.IsOptimizedDuringBuild)
                     {
@@ -856,8 +889,11 @@ public class BuildResourceHelper
         CPed.availComp = availComp;
 
         var allDrawables = _addon.Drawables.Where(x => x.Sex == sex).ToList();
-        var allCompDrawablesArray = allDrawables.Where(x => !x.IsProp).ToArray();
-        var allPropDrawablesArray = allDrawables.Where(x => x.IsProp).ToArray();
+        var buildNumberMap = GetBuildNumberMap(allDrawables);
+        var comparer = new DrawableGroupComparer();
+
+        var allCompDrawablesArray = allDrawables.Where(x => !x.IsProp).OrderBy(d => d, comparer).ToArray();
+        var allPropDrawablesArray = allDrawables.Where(x => x.IsProp).OrderBy(d => d, comparer).ToArray();
 
         var components = new Dictionary<byte, CPVComponentData>();
         for (byte i = 0; i < generatedAvailComp.Length; i++)
@@ -896,6 +932,7 @@ public class BuildResourceHelper
         for (int i = 0; i < compInfos.Length; i++)
         {
             var drawable = allCompDrawablesArray[i];
+            int buildNumber = buildNumberMap.TryGetValue(drawable, out var bn) ? bn : drawable.Number;
             compInfos[i].pedXml_audioID = JenkHash.GenHash(drawable.Audio);
             compInfos[i].pedXml_audioID2 = JenkHash.GenHash("none"); //todo
             compInfos[i].pedXml_expressionMods = new ArrayOfFloats5 { f0 = 0, f1 = 0, f2 = 0, f3 = 0, f4 = drawable.EnableHighHeels ? drawable.HighHeelsValue : 0 }; //expression mods
@@ -905,7 +942,7 @@ public class BuildResourceHelper
             compInfos[i].pedXml_vfxComps = ePedVarComp.PV_COMP_HEAD;
             compInfos[i].pedXml_flags = 0;
             compInfos[i].pedXml_compIdx = (byte)drawable.TypeNumeric;
-            compInfos[i].pedXml_drawblIdx = (byte)drawable.Number;
+            compInfos[i].pedXml_drawblIdx = (byte)(buildNumber % GlobalConstants.MAX_DRAWABLES_IN_ADDON);
         }
 
         CPed.compInfos = mb.AddItemArrayPtr(MetaName.CComponentInfo, compInfos);
@@ -919,6 +956,7 @@ public class BuildResourceHelper
         for (int i = 0; i < props.Length; i++)
         {
             var prop = allPropDrawablesArray[i];
+            int buildNumber = buildNumberMap.TryGetValue(prop, out var bn) ? bn : prop.Number;
             props[i].audioId = JenkHash.GenHash(prop.Audio);
             props[i].expressionMods = new ArrayOfFloats5 { f0 = prop.EnableHairScale ? -prop.HairScaleValue : 0, f1 = 0, f2 = 0, f3 = 0, f4 = 0 };
 
@@ -945,7 +983,7 @@ public class BuildResourceHelper
             props[i].propFlags = (uint)prop.Flags;
             props[i].flags = 0;
             props[i].anchorId = (byte)prop.TypeNumeric;
-            props[i].propId = (byte)prop.Number;
+            props[i].propId = (byte)(buildNumber % GlobalConstants.MAX_DRAWABLES_IN_ADDON);
             props[i].Unk_2894625425 = 0;
         }
         propInfo.aPropMetaData = mb.AddItemArrayPtr(MetaName.CPedPropMetaData, props);
@@ -1056,16 +1094,20 @@ public class BuildResourceHelper
     {
         var projectName = GetProjectName();
         var pedAlternativeVariations = new PedAlternativeVariations();
+        var buildNumberMap = GetBuildNumberMap(_addon.Drawables);
+        var comparer = new DrawableGroupComparer();
 
         foreach (var sex in new[] { SexType.male, SexType.female })
         {
 
             var addonMasksHideHair = _addon.Drawables
                 .Where(x => x.Sex == sex && x.TypeNumeric == 1 && !x.IsProp && x.HidesHair)
+                .OrderBy(d => d, comparer)
                 .ToList();
 
             var addonHairs = _addon.Drawables
                 .Where(x => x.Sex == sex && x.TypeNumeric == 2 && !x.IsProp)
+                .OrderBy(d => d, comparer)
                 .ToList();
 
             if (addonMasksHideHair.Count == 0 && addonHairs.Count == 0)
@@ -1094,7 +1136,7 @@ public class BuildResourceHelper
                             {
                                 DlcNameHash = projectName,
                                 Component = 1,
-                                Index = mask.Number
+                                Index = (buildNumberMap.TryGetValue(mask, out var bn) ? bn : mask.Number) % GlobalConstants.MAX_DRAWABLES_IN_ADDON
                             })]
                         });
                     }
@@ -1102,17 +1144,18 @@ public class BuildResourceHelper
 
                 foreach (var hair in addonHairs)
                 {
+                    int hairIndex = (buildNumberMap.TryGetValue(hair, out var bn) ? bn : hair.Number) % GlobalConstants.MAX_DRAWABLES_IN_ADDON;
                     ped.Switches.Add(new AlternateSwitch
                     {
                         DlcNameHash = projectName,
                         Component = 2,
-                        Index = hair.Number,
+                        Index = hairIndex,
                         Alt = 1,
                         SourceAssets = [.. addonMasksHideHair.Select(mask => new SourceAsset
                         {
                             DlcNameHash = projectName,
                             Component = 1,
-                            Index = mask.Number
+                            Index = (buildNumberMap.TryGetValue(mask, out var mbn) ? mbn : mask.Number) % GlobalConstants.MAX_DRAWABLES_IN_ADDON
                         })]
                     });
                 }
@@ -1136,11 +1179,12 @@ public class BuildResourceHelper
                         }));
                     }
 
+                    int hairIndex = (buildNumberMap.TryGetValue(hair, out var bn) ? bn : hair.Number) % GlobalConstants.MAX_DRAWABLES_IN_ADDON;
                     ped.Switches.Add(new AlternateSwitch
                     {
                         DlcNameHash = projectName,
                         Component = 2,
-                        Index = hair.Number,
+                        Index = hairIndex,
                         Alt = 1,
                         SourceAssets = sourceAssets
                     });
@@ -1167,16 +1211,21 @@ public class BuildResourceHelper
         var shouldGenCreatureHats = drawables.Any(x => x.EnableHairScale);
         if (!shouldGenCreatureHeels && !shouldGenCreatureHats) return null;
 
+        var buildNumberMap = GetBuildNumberMap(drawables);
+        var comparer = new DrawableGroupComparer();
+
         XElement xml = new("CCreatureMetaData");
         XElement pedCompExpressions = new("pedCompExpressions");
         if (shouldGenCreatureHeels)
         {
-            var feetDrawables = drawables.Where(x => x.TypeNumeric == 6 && x.IsComponent);
+            var feetDrawables = drawables.Where(x => x.TypeNumeric == 6 && x.IsComponent).OrderBy(d => d, comparer);
             foreach (var comp in feetDrawables)
             {
+                int buildNumber = buildNumberMap.TryGetValue(comp, out var bn) ? bn : comp.Number;
+                int varIndex = buildNumber % GlobalConstants.MAX_DRAWABLES_IN_ADDON;
                 XElement pedCompItem = new("Item");
                 pedCompItem.Add(new XElement("pedCompID", new XAttribute("value", string.Format("0x{0:X}", 6))));
-                pedCompItem.Add(new XElement("pedCompVarIndex", new XAttribute("value", string.Format("0x{0:X}", comp.Number))));
+                pedCompItem.Add(new XElement("pedCompVarIndex", new XAttribute("value", string.Format("0x{0:X}", varIndex))));
                 pedCompItem.Add(new XElement("pedCompExpressionIndex", new XAttribute("value", string.Format("0x{0:X}", 4))));
                 pedCompItem.Add(new XElement("tracks", new XAttribute("content", "char_array"), 33));
                 pedCompItem.Add(new XElement("ids", new XAttribute("content", "short_array"), 28462));
@@ -1201,11 +1250,13 @@ public class BuildResourceHelper
             FirstpedPropItem.Add(new XElement("components", new XAttribute("content", "char_array"), 1));
             pedPropExpressions.Add(FirstpedPropItem);
 
-            foreach (var prop in drawables.Where(x => x.TypeNumeric == 0 && x.IsProp))
+            foreach (var prop in drawables.Where(x => x.TypeNumeric == 0 && x.IsProp).OrderBy(d => d, comparer))
             {
+                int buildNumber = buildNumberMap.TryGetValue(prop, out var bn) ? bn : prop.Number;
+                int varIndex = buildNumber % GlobalConstants.MAX_DRAWABLES_IN_ADDON;
                 XElement pedPropItem = new("Item");
                 pedPropItem.Add(new XElement("pedPropID", new XAttribute("value", string.Format("0x{0:X}", 0))));
-                pedPropItem.Add(new XElement("pedPropVarIndex", new XAttribute("value", string.Format("0x{0:X}", prop.Number))));
+                pedPropItem.Add(new XElement("pedPropVarIndex", new XAttribute("value", string.Format("0x{0:X}", varIndex))));
                 pedPropItem.Add(new XElement("pedPropExpressionIndex", new XAttribute("value", string.Format("0x{0:X}", 0))));
                 pedPropItem.Add(new XElement("tracks", new XAttribute("content", "char_array"), 33));
                 pedPropItem.Add(new XElement("ids", new XAttribute("content", "short_array"), 13201));
