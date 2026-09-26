@@ -1,4 +1,4 @@
-using CodeWalker.GameFiles;
+﻿using CodeWalker.GameFiles;
 using grzyClothTool.Constants;
 using grzyClothTool.Controls;
 using grzyClothTool.Extensions;
@@ -49,7 +49,7 @@ namespace grzyClothTool.Models
             bool IsProp,
             int DrawableType
         ) : WorkItem;
-        private record CompletionMarker(TaskCompletionSource Tcs) : WorkItem;
+        private record CompletionMarker(TaskCompletionSource Tcs, List<DuplicateBatchItem> DeferredDuplicates) : WorkItem;
 
         private readonly BlockingCollection<WorkItem> _drawableQueue = new();
         private readonly Task _drawableProcessingTask;
@@ -275,7 +275,8 @@ namespace grzyClothTool.Models
             PedFile ymt = null,
             string basePath = null,
             PedAlternativeVariations pedAltVariations = null,
-            Dictionary<string, (bool IsProp, int DrawableType)> resolvedDrawableTypes = null)
+            Dictionary<string, (bool IsProp, int DrawableType)> resolvedDrawableTypes = null,
+            List<DuplicateBatchItem> deferredDuplicates = null)
         {
             resolvedDrawableTypes ??= await FileHelper.ResolveDrawableTypes(filePaths);
             var tcs = new TaskCompletionSource();
@@ -333,7 +334,7 @@ namespace grzyClothTool.Models
                 _drawableQueue.Add(workItem);
             }
 
-            _drawableQueue.Add(new CompletionMarker(tcs));
+            _drawableQueue.Add(new CompletionMarker(tcs, deferredDuplicates));
             await tcs.Task;
         }
 
@@ -349,7 +350,7 @@ namespace grzyClothTool.Models
                     {
                         if (pendingItems.Count > 0)
                         {
-                            await ProcessWorkItemBatch(pendingItems);
+                            await ProcessWorkItemBatch(pendingItems, marker.DeferredDuplicates);
                         }
                     }
                     catch (Exception ex)
@@ -375,7 +376,7 @@ namespace grzyClothTool.Models
         /// copies are all I/O bound), while order-sensitive steps (ymt metadata, first person /
         /// cloth physics linking, numbering) run sequentially afterwards.
         /// </summary>
-        private async Task ProcessWorkItemBatch(List<DrawableWorkItem> items)
+        private async Task ProcessWorkItemBatch(List<DrawableWorkItem> items, List<DuplicateBatchItem> deferredDuplicates)
         {
             await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
             {
@@ -552,7 +553,7 @@ namespace grzyClothTool.Models
 
             if (pendingDrawables.Count > 0)
             {
-                await ProcessBatchDuplicatesAndAdd(pendingDrawables);
+                await ProcessBatchDuplicatesAndAdd(pendingDrawables, deferredDuplicates);
             }
         }
 
@@ -662,7 +663,47 @@ namespace grzyClothTool.Models
             }
         }
 
-        private async Task ProcessBatchDuplicatesAndAdd(List<GDrawable> drawables)
+        public async Task ResolveDeferredDuplicatesAsync(List<DuplicateBatchItem> batchItems)
+        {
+            if (batchItems == null || batchItems.Count == 0)
+                return;
+
+            DuplicateBatchResult result = null;
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                result = DuplicateBatchDialog.Show(batchItems);
+            });
+
+            if (result != null && !result.Cancelled)
+            {
+                foreach (var chunk in result.DrawablesToAdd.Chunk(64))
+                {
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        foreach (var drawable in chunk)
+                        {
+                            AddDrawableInternal(drawable, markUnsaved: false);
+                        }
+                    }, System.Windows.Threading.DispatcherPriority.Background);
+                    SaveHelper.SetUnsavedChanges(true);
+                }
+
+                foreach (var drawable in result.DrawablesToSkip)
+                {
+                    LogHelper.Log($"Drawable '{Path.GetFileName(drawable.FilePath)}' was not added (user skipped duplicate)", Views.LogType.Info);
+                }
+            }
+            else if (result?.Cancelled == true)
+            {
+                foreach (var drawable in batchItems.Select(item => item.Drawable))
+                {
+                    LogHelper.Log($"Drawable '{Path.GetFileName(drawable.FilePath)}' was not added (user cancelled duplicate batch)", Views.LogType.Info);
+                }
+            }
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => Addons.Sort(true));
+        }
+
+        private async Task ProcessBatchDuplicatesAndAdd(List<GDrawable> drawables, List<DuplicateBatchItem> deferredDuplicates)
         {
             // Wait for background YDD detail loading to finish before hashing, so duplicate
             // detection never has to poll IsLoading with sleeps (details are part of the hash).
@@ -673,6 +714,39 @@ namespace grzyClothTool.Models
                 await Task.WhenAny(allLoaded, Task.Delay(TimeSpan.FromMinutes(2)));
             }
 
+            if (deferredDuplicates != null)
+            {
+                var acceptedAny = false;
+                // Register accepted files as we go, so later files in this folder and
+                // subsequent folders are checked against them without opening a dialog.
+                foreach (var chunk in drawables.Chunk(64))
+                {
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        foreach (var drawable in chunk)
+                        {
+                            var duplicates = DuplicateDetector.CheckDrawableDuplicate(drawable);
+                            if (duplicates != null && duplicates.Count > 0)
+                            {
+                                deferredDuplicates.Add(new DuplicateBatchItem
+                                {
+                                    Drawable = drawable,
+                                    ExistingDuplicates = duplicates.ToList()
+                                });
+                            }
+                            else
+                            {
+                                AddDrawableInternal(drawable, markUnsaved: false);
+                                acceptedAny = true;
+                            }
+                        }
+                    }, System.Windows.Threading.DispatcherPriority.Background);
+                }
+                if (acceptedAny)
+                    SaveHelper.SetUnsavedChanges(true);
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => Addons.Sort(true));
+                return;
+            }
             var duplicatesDict = DuplicateDetector.CheckDrawableDuplicatesBatch(drawables);
 
             var drawablesWithDuplicates = drawables.Where(d => duplicatesDict.ContainsKey(d)).ToList();
@@ -704,38 +778,7 @@ namespace grzyClothTool.Models
                     })
                     .ToList();
 
-                DuplicateBatchResult result = null;
-                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
-                {
-                    result = DuplicateBatchDialog.Show(batchItems);
-                });
-
-                if (result != null && !result.Cancelled)
-                {
-                    foreach (var chunk in result.DrawablesToAdd.Chunk(64))
-                    {
-                        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
-                        {
-                            foreach (var drawable in chunk)
-                            {
-                                AddDrawableInternal(drawable, markUnsaved: false);
-                            }
-                        }, System.Windows.Threading.DispatcherPriority.Background);
-                        addedAny = true;
-                    }
-
-                    foreach (var drawable in result.DrawablesToSkip)
-                    {
-                        LogHelper.Log($"Drawable '{Path.GetFileName(drawable.FilePath)}' was not added (user skipped duplicate)", Views.LogType.Info);
-                    }
-                }
-                else if (result?.Cancelled == true)
-                {
-                    foreach (var drawable in drawablesWithDuplicates)
-                    {
-                        LogHelper.Log($"Drawable '{Path.GetFileName(drawable.FilePath)}' was not added (user cancelled duplicate batch)", Views.LogType.Info);
-                    }
-                }
+                await ResolveDeferredDuplicatesAsync(batchItems);
             }
 
             if (addedAny)

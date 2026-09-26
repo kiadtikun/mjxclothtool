@@ -273,12 +273,16 @@ namespace grzyClothTool.Views
 
                 ProgressHelper.Stop($"Found {fileCount} drawable files in {{0}}", true);
 
+                var deferredDuplicates = forcedGender.HasValue ? null : new List<DuplicateBatchItem>();
+
                 // Finish both genders in one folder before starting the next folder.
                 foreach (var batch in batches)
                 {
-                    if (!await AddDrawablesByDetectedGenderAsync(batch, forcedGender))
+                    if (!await AddDrawablesByDetectedGenderAsync(batch, forcedGender, deferredDuplicates))
                         break;
                 }
+
+                await MainWindow.AddonManager.ResolveDeferredDuplicatesAsync(deferredDuplicates);
             }
             catch (Exception ex)
             {
@@ -287,7 +291,7 @@ namespace grzyClothTool.Views
             }
         }
 
-        private static async Task<bool> AddDrawablesByDetectedGenderAsync(IEnumerable<string> filePaths, Enums.SexType? forcedGender = null)
+        private static async Task<bool> AddDrawablesByDetectedGenderAsync(IEnumerable<string> filePaths, Enums.SexType? forcedGender = null, List<DuplicateBatchItem> deferredDuplicates = null)
         {
             var files = filePaths.Distinct().ToList();
             if (files.Count == 0)
@@ -322,7 +326,7 @@ namespace grzyClothTool.Views
                     var maleTypes = resolution.DrawableTypes
                         .Where(x => maleFiles.Contains(x.Key))
                         .ToDictionary(x => x.Key, x => x.Value);
-                    await MainWindow.AddonManager.AddDrawables(maleFiles, Enums.SexType.male, resolvedDrawableTypes: maleTypes);
+                    await MainWindow.AddonManager.AddDrawables(maleFiles, Enums.SexType.male, resolvedDrawableTypes: maleTypes, deferredDuplicates: deferredDuplicates);
                 }
 
                 if (femaleFiles.Length > 0)
@@ -330,7 +334,7 @@ namespace grzyClothTool.Views
                     var femaleTypes = resolution.DrawableTypes
                         .Where(x => femaleFiles.Contains(x.Key))
                         .ToDictionary(x => x.Key, x => x.Value);
-                    await MainWindow.AddonManager.AddDrawables(femaleFiles, Enums.SexType.female, resolvedDrawableTypes: femaleTypes);
+                    await MainWindow.AddonManager.AddDrawables(femaleFiles, Enums.SexType.female, resolvedDrawableTypes: femaleTypes, deferredDuplicates: deferredDuplicates);
                 }
 
                 ProgressHelper.Stop("Added drawables in {0}", true);
