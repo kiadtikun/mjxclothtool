@@ -32,6 +32,34 @@ public class GTexture : INotifyPropertyChanged
     public string FilePath { get; set; }
     public string Extension { get; set; }
 
+    private string? _originalFileName;
+    public string? OriginalFileName
+    {
+        get => _originalFileName;
+        set
+        {
+            _originalFileName = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(SourceFileName));
+        }
+    }
+
+    [JsonIgnore]
+    public string SourceFileName
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(OriginalFileName))
+                return OriginalFileName;
+
+            // Older projects may only have a generated asset GUID; the original name is lost.
+            var name = Path.GetFileName(FilePath);
+            return !string.IsNullOrEmpty(name) && !Guid.TryParse(Path.GetFileNameWithoutExtension(name), out _)
+                ? name
+                : DisplayName;
+        }
+    }
+
     [JsonIgnore]
     public string FullFilePath => FileHelper.ResolveFilePath(FilePath);
 
@@ -45,6 +73,7 @@ public class GTexture : INotifyPropertyChanged
             {
                 _displayName = value;
                 OnPropertyChanged(nameof(DisplayName));
+                OnPropertyChanged(nameof(SourceFileName));
             }
         }
     }

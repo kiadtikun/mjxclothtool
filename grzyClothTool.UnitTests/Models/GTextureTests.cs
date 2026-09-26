@@ -5,6 +5,36 @@ namespace grzyClothTool.UnitTests.Models;
 public class GTextureTests
 {
     [Fact]
+    public void SourceFileName_PreservesOriginalNameAcrossRenumberingAndSaveLoad()
+    {
+        var texture = CreateTexture(Guid.NewGuid(), 11, 0, 0, false, false);
+        texture.OriginalFileName = "mp_f_freemode_01^jbib_diff_042_b_uni.ytd";
+        texture.Number = 12;
+        texture.TxtNumber = 2;
+
+        var json = System.Text.Json.JsonSerializer.Serialize(texture);
+        var loaded = System.Text.Json.JsonSerializer.Deserialize<GTexture>(json)!;
+
+        Assert.Equal(texture.OriginalFileName, loaded.SourceFileName);
+        Assert.Equal("jbib_diff_012_c_uni", loaded.GetBuildName());
+    }
+
+    [Fact]
+    public void SourceFileName_OldGuidAssetFallsBackToDisplayName()
+    {
+        var texture = CreateTexture(Guid.NewGuid(), 11, 0, 0, false, false);
+        Assert.Equal(texture.DisplayName, texture.SourceFileName);
+    }
+
+    [Fact]
+    public void SourceFileName_OldExternalAssetUsesFileName()
+    {
+        var texture = CreateTexture(Guid.NewGuid(), 11, 0, 0, false, false);
+        texture.FilePath = @"C:\textures\original_texture.ytd";
+        Assert.Equal("original_texture.ytd", texture.SourceFileName);
+    }
+
+    [Fact]
     public void Constructor_AssignsIdWhenEmptyGuidProvided()
     {
         var texture = CreateTexture(Guid.Empty, typeNumeric: 11, number: 0, txtNumber: 0, hasSkin: false, isProp: false);

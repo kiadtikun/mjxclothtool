@@ -895,7 +895,8 @@
                                                                         VerticalAlignment="Center" />
 
                                                             <TextBlock Grid.Column="2"
-                                                                       Text="{Binding DisplayName}"
+                                                                       Text="{Binding SourceFileName}"
+                                                                       ToolTip="{Binding SourceFileName}"
                                                                        VerticalAlignment="Center"
                                                                        FontSize="13"
                                                                        Foreground="{DynamicResource Brush900}"

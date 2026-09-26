@@ -679,7 +679,7 @@ namespace grzyClothTool.Controls
                         }
                     }
                     
-                    var gtxt = new GTexture(textureGuid, texturePath, sel.TypeNumeric, sel.Number, sel.Textures.Count, sel.HasSkin, sel.IsProp);
+                    var gtxt = new GTexture(textureGuid, texturePath, sel.TypeNumeric, sel.Number, sel.Textures.Count, sel.HasSkin, sel.IsProp) { OriginalFileName = Path.GetFileName(file) };
                     gtxt.LoadThumbnailAsync();
                     sel.Textures.Add(gtxt);
 
@@ -958,7 +958,7 @@ namespace grzyClothTool.Controls
                         }
                     }
 
-                    var gtxt = new GTexture(textureGuid, texturePath, sel.TypeNumeric, sel.Number, sel.Textures.Count, sel.HasSkin, sel.IsProp);
+                    var gtxt = new GTexture(textureGuid, texturePath, sel.TypeNumeric, sel.Number, sel.Textures.Count, sel.HasSkin, sel.IsProp) { OriginalFileName = Path.GetFileName(file) };
                     gtxt.LoadThumbnailAsync();
                     sel.Textures.Add(gtxt);
 
@@ -1164,7 +1164,7 @@ namespace grzyClothTool.Controls
                 var newRelativePath = await FileHelper.CopyToProjectAssetsAsync(file.FileName, selectedTexture.Id.ToString());
                 
                 // create new texture with relative path
-                var newTexture = new GTexture(selectedTexture.Id, newRelativePath, SelectedDraw.TypeNumeric, SelectedDraw.Number, selectedTexture.TxtNumber, SelectedDraw.HasSkin, SelectedDraw.IsProp);
+                var newTexture = new GTexture(selectedTexture.Id, newRelativePath, SelectedDraw.TypeNumeric, SelectedDraw.Number, selectedTexture.TxtNumber, SelectedDraw.HasSkin, SelectedDraw.IsProp) { OriginalFileName = Path.GetFileName(file.FileName) };
                 int index = SelectedDraw.Textures.IndexOf(selectedTexture);
 
                 MainWindow.AddonManager.SelectedAddon.SelectedDrawable.Textures[index] = newTexture;

@@ -544,7 +544,8 @@ namespace grzyClothTool.Controls
                         texture.IsProp
                     )
                     {
-                        IsOptimizedDuringBuild = texture.IsOptimizedDuringBuild
+                        IsOptimizedDuringBuild = texture.IsOptimizedDuringBuild,
+                        OriginalFileName = texture.OriginalFileName
                     };
 
                     if (texture.IsOptimizedDuringBuild && texture.OptimizeDetails != null)

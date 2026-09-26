@@ -333,7 +333,10 @@ public static class FileHelper
 
         // Create texture objects
         var textures = new ObservableCollection<GTexture>(
-            texturesList.Select(t => new GTexture(Guid.Empty, t.path, typeNumber, countOfType, t.txtNumber, drawableHasSkin, isProp))
+            texturesList.Select(t => new GTexture(Guid.Empty, t.path, typeNumber, countOfType, t.txtNumber, drawableHasSkin, isProp)
+            {
+                OriginalFileName = Path.GetFileName(matchingTextures[t.txtNumber])
+            })
         );
 
         var drawable = new GDrawable(drawableGuid, drawablePath, sex, isProp, typeNumber, countOfType, drawableHasSkin, textures);

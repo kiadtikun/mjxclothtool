@@ -261,34 +261,24 @@ namespace grzyClothTool.Views
             {
                 LogHelper.Log("Scanning files to add...", LogType.Info);
 
-                var allFiles = await Task.Run(() =>
-                {
-                    var fileList = new List<string>();
-                    foreach (var fldr in folder.FolderNames)
-                    {
-                        var files = Directory.GetFiles(fldr, "*.ydd", SearchOption.AllDirectories);
-                        fileList.AddRange(files);
-                    }
+                var batches = await Task.Run(() =>
+                    DrawableFolderImportHelper.GetOrderedBatches(folder.FolderNames));
+                var fileCount = batches.Sum(batch => batch.Length);
 
-                    return fileList
-                        .OrderBy(f =>
-                        {
-                            var number = FileHelper.GetDrawableNumberFromFileName(Path.GetFileName(f));
-                            return number ?? int.MaxValue;
-                        })
-                        .ThenBy(Path.GetFileName)
-                        .ToArray();
-                });
-
-                if (allFiles.Length == 0)
+                if (fileCount == 0)
                 {
                     ProgressHelper.Stop("No drawable files found", false);
                     return;
                 }
 
-                ProgressHelper.Stop($"Found {allFiles.Length} drawable files in {{0}}", true);
+                ProgressHelper.Stop($"Found {fileCount} drawable files in {{0}}", true);
 
-                await AddDrawablesByDetectedGenderAsync(allFiles, forcedGender);
+                // Finish both genders in one folder before starting the next folder.
+                foreach (var batch in batches)
+                {
+                    if (!await AddDrawablesByDetectedGenderAsync(batch, forcedGender))
+                        break;
+                }
             }
             catch (Exception ex)
             {
@@ -297,19 +287,19 @@ namespace grzyClothTool.Views
             }
         }
 
-        private static async Task AddDrawablesByDetectedGenderAsync(IEnumerable<string> filePaths, Enums.SexType? forcedGender = null)
+        private static async Task<bool> AddDrawablesByDetectedGenderAsync(IEnumerable<string> filePaths, Enums.SexType? forcedGender = null)
         {
             var files = filePaths.Distinct().ToList();
             if (files.Count == 0)
             {
-                return;
+                return false;
             }
 
             var resolution = ResolveDrawableImport(files, forcedGender);
             if (resolution == null)
             {
                 LogHelper.Log("Adding drawables cancelled while resolving import settings.", LogType.Info);
-                return;
+                return false;
             }
 
             var maleFiles = resolution.Genders
@@ -345,11 +335,13 @@ namespace grzyClothTool.Views
 
                 ProgressHelper.Stop("Added drawables in {0}", true);
                 SaveHelper.SetUnsavedChanges(true);
+                return true;
             }
             catch (Exception ex)
             {
                 LogHelper.Log($"Error adding drawables: {ex.Message}", LogType.Error);
                 ProgressHelper.Stop("Failed to add drawables", false);
+                return false;
             }
         }
 
