@@ -30,8 +30,14 @@
                         IsChecked="True"
                         MyBtnSelectEvent="RadioButton_ChangedEvent"
                     />
+                    <c:ModernLabelRadioButton
+                        Margin="5,1,5,0"
+                        GroupName="resource"
+                        Label="Game [FiveM]"
+                        MyBtnSelectEvent="RadioButton_ChangedEvent"
+                    />
                     <c:ModernLabelRadioButton 
-                        Margin="5,1,5,5"
+                        Margin="5,1,5,0"
                         GroupName="resource"
                         Label="AltV"
                         MyBtnSelectEvent="RadioButton_ChangedEvent"

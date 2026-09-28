@@ -207,6 +207,9 @@ namespace grzyClothTool.Views
                 case BuildResourceType.FiveM:
                     await buildHelper.BuildFiveMResource();
                     break;
+                case BuildResourceType.GameFiveM:
+                    await buildHelper.BuildGameFiveMResource();
+                    break;
                 case BuildResourceType.AltV:
                     await buildHelper.BuildAltVResource();
                     break;
@@ -287,14 +290,16 @@ namespace grzyClothTool.Views
                 _resourceType = radioButton.Label switch
                 {
                     "FiveM" => BuildResourceType.FiveM,
+                    "Game [FiveM]" => BuildResourceType.GameFiveM,
                     "AltV" => BuildResourceType.AltV,
                     "Singleplayer" => BuildResourceType.Singleplayer,
                     _ => throw new NotImplementedException()
                 };
 
 
-                // Singleplayer doesn't support splitting addons
-                if (_resourceType == BuildResourceType.Singleplayer)
+                // These modes produce one combined build and do not support splitting addons.
+                if (_resourceType == BuildResourceType.Singleplayer ||
+                    _resourceType == BuildResourceType.GameFiveM)
                 {
                     SplitAddons = false;
                     split_addons.IsEnabled = false;

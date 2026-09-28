@@ -4,6 +4,7 @@ using grzyClothTool.Constants;
 using grzyClothTool.Controls;
 using grzyClothTool.Models;
 using grzyClothTool.Models.Drawable;
+using grzyClothTool.Models.Texture;
 using grzyClothTool.Views;
 using System;
 using System.Collections.Generic;
@@ -267,6 +268,140 @@ public class BuildResourceHelper
         }
 
         CleanupBuildTempDirectory();
+    }
+
+    public async Task BuildGameFiveMResource()
+    {
+        CleanupBuildOutputDirectory();
+        _buildPath = _baseBuildPath;
+
+        var allDrawables = MainWindow.AddonManager.Addons
+            .SelectMany(addon => addon.Drawables)
+            .ToList();
+        var tasks = new List<Task>();
+
+        foreach (var sex in new[] { SexType.male, SexType.female })
+        {
+            var drawablesForSex = allDrawables.Where(drawable => drawable.Sex == sex).ToList();
+            if (drawablesForSex.Count == 0)
+            {
+                continue;
+            }
+
+            var definition = GameBaseYmtDefinition.Load(sex);
+            var buildNumberMap = GameBaseYmtBuilder.GetBuildNumberMap(definition, drawablesForSex);
+            var ymtBytes = GameBaseYmtBuilder.Build(definition, drawablesForSex, GetPedName(sex));
+            tasks.Add(BuildGameFiveMFilesAsync(sex, drawablesForSex, buildNumberMap, ymtBytes));
+        }
+
+        await Task.WhenAll(tasks);
+        BuildFirstPersonAlternatesMeta();
+        BuildGameFiveMFxManifest();
+        CleanupBuildTempDirectory();
+    }
+
+    private async Task BuildGameFiveMFilesAsync(
+        SexType sex,
+        IReadOnlyCollection<GDrawable> drawables,
+        IReadOnlyDictionary<GDrawable, int> buildNumberMap,
+        byte[] ymtBytes)
+    {
+        var pedName = GetPedName(sex);
+        var streamDirectory = Path.Combine(_buildPath, "stream");
+        Directory.CreateDirectory(streamDirectory);
+
+        var yddPaths = await BatchResaveYdd(drawables, maxParallelism: 4, progress: _progress);
+        var fileOperations = new List<Task>
+        {
+            File.WriteAllBytesAsync(Path.Combine(streamDirectory, $"{pedName}.ymt"), ymtBytes)
+        };
+
+        foreach (var drawable in drawables)
+        {
+            var buildNumber = buildNumberMap[drawable];
+            var buildDrawableName = GetGameBaseDrawableName(drawable, buildNumber);
+            var collectionName = drawable.IsProp ? $"{pedName}_p" : pedName;
+            var prefix = $"{collectionName}^";
+
+            fileOperations.Add(FileHelper.CopyAsync(
+                yddPaths[drawable],
+                Path.Combine(streamDirectory, $"{prefix}{buildDrawableName}{Path.GetExtension(drawable.FullFilePath)}")));
+
+            if (!string.IsNullOrEmpty(drawable.ClothPhysicsPath))
+            {
+                fileOperations.Add(FileHelper.CopyAsync(
+                    drawable.FullClothPhysicsPath,
+                    Path.Combine(streamDirectory, $"{prefix}{buildDrawableName}{Path.GetExtension(drawable.ClothPhysicsPath)}")));
+            }
+
+            if (!string.IsNullOrEmpty(drawable.FirstPersonPath))
+            {
+                fileOperations.Add(FileHelper.CopyAsync(
+                    drawable.FullFirstPersonPath,
+                    Path.Combine(streamDirectory, $"{prefix}{buildDrawableName}_1{Path.GetExtension(drawable.FirstPersonPath)}")));
+                lock (firstPersonFiles)
+                {
+                    firstPersonFiles.Add($"{collectionName}/{buildDrawableName}");
+                }
+            }
+
+            foreach (var texture in drawable.Textures)
+            {
+                var buildTextureName = RemoveInvalidChars(GetGameBaseTextureName(texture, buildNumber));
+                var finalTexturePath = Path.Combine(streamDirectory, $"{prefix}{buildTextureName}.ytd");
+
+                if (texture.IsOptimizedDuringBuild || texture.Extension != ".ytd")
+                {
+                    var optimizedBytes = await ImgHelper.Optimize(texture, texture.Extension != ".ytd");
+                    if (optimizedBytes == null)
+                    {
+                        LogHelper.Log($"Skipping corrupted texture: {texture.DisplayName}", LogType.Warning);
+                        continue;
+                    }
+
+                    fileOperations.Add(File.WriteAllBytesAsync(finalTexturePath, optimizedBytes));
+                }
+                else
+                {
+                    fileOperations.Add(FileHelper.CopyAsync(texture.FullFilePath, finalTexturePath));
+                }
+            }
+        }
+
+        await Task.WhenAll(fileOperations);
+    }
+
+    private static string GetGameBaseDrawableName(GDrawable drawable, int buildNumber)
+    {
+        var name = $"{drawable.TypeName}_{buildNumber:D3}";
+        return drawable.IsProp ? name : $"{name}_{(drawable.HasSkin ? "r" : "u")}";
+    }
+
+    private static string GetGameBaseTextureName(GTexture texture, int buildNumber)
+    {
+        var name = $"{texture.TypeName}_diff_{buildNumber:D3}_{texture.TxtLetter}";
+        return texture.IsProp ? name : $"{name}_{(texture.HasSkin ? "whi" : "uni")}";
+    }
+
+    private void BuildGameFiveMFxManifest()
+    {
+        var content = new StringBuilder();
+        content.AppendLine("fx_version 'cerulean'");
+        content.AppendLine("game 'gta5'");
+        content.AppendLine("author 'munjangg'");
+
+        if (firstPersonFiles.Count > 0)
+        {
+            content.AppendLine();
+            content.AppendLine("files {");
+            content.AppendLine($"  'first_person_alternates_{_projectName}.meta'");
+            content.AppendLine("}");
+            content.AppendLine();
+            content.AppendLine($"data_file 'PED_FIRST_PERSON_ALTERNATE_DATA' 'first_person_alternates_{_projectName}.meta'");
+        }
+
+        File.WriteAllText(Path.Combine(_buildPath, "fxmanifest.lua"), content.ToString());
+        firstPersonFiles.Clear();
     }
 
     private void BuildFxManifest(List<string> metaFiles)

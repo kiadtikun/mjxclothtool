@@ -19,6 +19,7 @@ public class Enums
     public enum BuildResourceType
     {
         FiveM,
+        GameFiveM,
         AltV,
         Singleplayer
     }

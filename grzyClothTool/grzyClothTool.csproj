@@ -25,6 +25,8 @@
     <Resource Include="Resources\grzyClothToolIcon.ico" />
     <Resource Include="Resources\reservedDrawable.ydd" />
     <Resource Include="Resources\reservedTexture.ytd" />
+    <EmbeddedResource Include="Resources\GameBase\mp_f_freemode_01.ymt.xml" />
+    <EmbeddedResource Include="Resources\GameBase\mp_m_freemode_01.ymt.xml" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Dirkster.AvalonDock" Version="4.72.1" />
