@@ -262,23 +262,9 @@ namespace grzyClothTool.Views
                 LogHelper.Log("Scanning files to add...", LogType.Info);
 
                 var allFiles = await Task.Run(() =>
-                {
-                    var fileList = new List<string>();
-                    foreach (var fldr in folder.FolderNames)
-                    {
-                        var files = Directory.GetFiles(fldr, "*.ydd", SearchOption.AllDirectories);
-                        fileList.AddRange(files);
-                    }
-
-                    return fileList
-                        .OrderBy(f =>
-                        {
-                            var number = FileHelper.GetDrawableNumberFromFileName(Path.GetFileName(f));
-                            return number ?? int.MaxValue;
-                        })
-                        .ThenBy(Path.GetFileName)
-                        .ToArray();
-                });
+                    DrawableFolderImportHelper.GetOrderedBatches(folder.FolderNames)
+                        .SelectMany(batch => batch)
+                        .ToArray());
 
                 if (allFiles.Length == 0)
                 {
