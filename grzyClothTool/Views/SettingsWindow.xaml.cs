@@ -165,12 +165,6 @@ namespace grzyClothTool.Views
             }
         }
 
-        public void PatreonAccount_Click(object sender, RoutedEventArgs e)
-        {
-            var accountsWindow = new AccountsWindow();
-            accountsWindow.ShowDialog();
-        }
-
         public void ThemeModeChange_Click(object sender, RoutedEventArgs e)
         {
             if (sender is ToggleButton toggleButton && toggleButton.IsChecked.HasValue)

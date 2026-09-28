@@ -40,7 +40,7 @@ public static class ImgHelper
         }
         catch (Exception e) when (e.Message.Contains("Invalid slice pitch"))
         {
-            TelemetryHelper.CaptureExceptionWithAttachment(e, path);
+            ErrorLogHelper.LogError($"Failed to process local file '{Path.GetFileName(path)}'.", e);
             throw;
         }
     }

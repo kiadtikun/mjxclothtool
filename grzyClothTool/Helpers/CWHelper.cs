@@ -129,7 +129,7 @@ public static class CWHelper
         }
         catch (Exception ex)
         {
-            TelemetryHelper.CaptureExceptionWithAttachment(ex, d.FullFilePath);
+            ErrorLogHelper.LogError($"Failed to process local file '{Path.GetFileName(d.FullFilePath)}'.", ex);
             throw;
         }
     }

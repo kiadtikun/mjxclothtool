@@ -5,7 +5,6 @@ using Material.Icons;
 using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -13,7 +12,6 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using System.Windows.Navigation;
 using AvalonDock.Themes;
 using static grzyClothTool.Enums;
 
@@ -45,7 +43,6 @@ namespace grzyClothTool
             InitializeComponent();
             this.Visibility = Visibility.Hidden;
             CWHelper.Init();
-            _ = TelemetryHelper.LogSession(true);
 
             _instance = this;
             _addonManager = new AddonManager();
@@ -76,10 +73,6 @@ namespace grzyClothTool
 
             Dispatcher.BeginInvoke((Action)(async () =>
             {
-#if !DEBUG
-                App.splashScreen.AddMessage("Checking for updates...");
-                await UpdateHelper.CheckForUpdates();
-#endif
                 App.splashScreen.AddMessage("Starting app");
 
                 while (App.splashScreen.MessageQueueCount > 0)
@@ -212,14 +205,6 @@ namespace grzyClothTool
                 logBarIcon.Kind = Enum.Parse<MaterialIconKind>(e.TypeIcon);
                 logBarIcon.Visibility = Visibility.Visible;
             });
-        }
-
-        private void Hyperlink_RequestNavigate(object sender, RequestNavigateEventArgs e)
-        {
-            Process p = new Process();
-            p.StartInfo.UseShellExecute = true;
-            p.StartInfo.FileName = e.Uri.AbsoluteUri;
-            p.Start();
         }
 
         //this is needed so window can be clicked anywhere to unfocus textbox
@@ -618,8 +603,6 @@ namespace grzyClothTool
         // if main window is closed, close CW window too
         private void Window_Closed(object sender, System.EventArgs e)
         {
-            _ = TelemetryHelper.LogSession(false);
-
             PreviewHost?.ClosePreview();
             LogHelper.Close();
         }
