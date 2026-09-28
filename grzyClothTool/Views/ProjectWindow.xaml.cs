@@ -20,6 +20,7 @@ using Path = System.IO.Path;
 using UserControl = System.Windows.Controls.UserControl;
 using KeyEventArgs = System.Windows.Input.KeyEventArgs;
 using System.Windows.Input;
+using System.Windows.Media;
 using grzyClothTool.Models.Drawable;
 using grzyClothTool.Models.Texture;
 using System.Threading.Tasks;
@@ -736,7 +737,22 @@ namespace grzyClothTool.Views
                     return;
                 }
 
+                var existingDrawableIds = MainWindow.AddonManager.Addons
+                    .SelectMany(addon => addon.Drawables)
+                    .Select(drawable => drawable.Id)
+                    .ToHashSet();
+
                 await AddDrawablesByDetectedGenderAsync(accessibleFiles, reviewDroppedFiles: true);
+
+                var importedDrawables = MainWindow.AddonManager.Addons
+                    .SelectMany(addon => addon.Drawables)
+                    .Where(drawable => !drawable.IsReserved && !existingDrawableIds.Contains(drawable.Id))
+                    .ToList();
+
+                if (importedDrawables.Count > 0)
+                {
+                    await SelectAndRevealImportedDrawablesAsync(importedDrawables);
+                }
             }
             catch (Exception ex)
             {
@@ -750,6 +766,56 @@ namespace grzyClothTool.Views
             }
             
             e.Handled = true;
+        }
+
+        private async Task SelectAndRevealImportedDrawablesAsync(IReadOnlyCollection<GDrawable> importedDrawables)
+        {
+            var targetAddon = MainWindow.AddonManager.Addons
+                .FirstOrDefault(addon => addon.Drawables.Any(importedDrawables.Contains));
+
+            if (targetAddon == null)
+            {
+                return;
+            }
+
+            MainWindow.AddonManager.SelectedAddon = targetAddon;
+            Addon = targetAddon;
+
+            // Let the selected tab create its DataTemplate before finding its DrawableList.
+            await Dispatcher.InvokeAsync(() => AddonTabControl.UpdateLayout(),
+                System.Windows.Threading.DispatcherPriority.Loaded);
+
+            var importedInTargetAddon = importedDrawables
+                .Where(targetAddon.Drawables.Contains)
+                .ToList();
+
+            var drawableList = FindVisualChildren<DrawableList>(AddonTabControl)
+                .FirstOrDefault(list => list.ItemsSource == targetAddon.Drawables);
+
+            drawableList?.SelectAndReveal(importedInTargetAddon);
+        }
+
+        private static IEnumerable<T> FindVisualChildren<T>(DependencyObject parent)
+            where T : DependencyObject
+        {
+            if (parent == null)
+            {
+                yield break;
+            }
+
+            for (var index = 0; index < VisualTreeHelper.GetChildrenCount(parent); index++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, index);
+                if (child is T match)
+                {
+                    yield return match;
+                }
+
+                foreach (var descendant in FindVisualChildren<T>(child))
+                {
+                    yield return descendant;
+                }
+            }
         }
 
         private static Enums.SexType? DetermineGenderFromFilename(string filePath)

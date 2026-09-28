@@ -265,6 +265,55 @@ namespace grzyClothTool.Controls
             }
         }
 
+        public bool SelectAndReveal(IEnumerable<GDrawable> drawables)
+        {
+            if (ItemsSource == null)
+            {
+                return false;
+            }
+
+            var itemsToSelect = drawables
+                .Where(ItemsSource.Contains)
+                .Distinct()
+                .ToList();
+
+            if (itemsToSelect.Count == 0)
+            {
+                return false;
+            }
+
+            // A previous search or a collapsed group must not hide freshly imported files.
+            SearchText = string.Empty;
+            foreach (var drawable in itemsToSelect)
+            {
+                if (!string.IsNullOrWhiteSpace(drawable.Group))
+                {
+                    _groupExpandedStates[drawable.Group] = true;
+                }
+
+                if (!string.IsNullOrWhiteSpace(drawable.TypeName))
+                {
+                    _groupExpandedStates[drawable.TypeName] = true;
+                }
+            }
+
+            DrawablesView?.Refresh();
+            MyListBox.SelectedItems.Clear();
+
+            foreach (var drawable in itemsToSelect)
+            {
+                MyListBox.SelectedItems.Add(drawable);
+            }
+
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                MyListBox.UpdateLayout();
+                MyListBox.ScrollIntoView(itemsToSelect[0]);
+            }), System.Windows.Threading.DispatcherPriority.Loaded);
+
+            return true;
+        }
+
         private void SetupGrouping()
         {
             if (ItemsSource == null) return;
