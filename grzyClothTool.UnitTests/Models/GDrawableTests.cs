@@ -56,6 +56,29 @@ public class GDrawableTests
     }
 
     [Fact]
+    public void ApplyDrawableType_UpdatesGroupDrawableAndTexture()
+    {
+        var texture = CreateTexture(typeNumeric: 11, number: 66);
+        var drawable = new GDrawable(
+            Guid.NewGuid(),
+            Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.ydd"),
+            SexType.female,
+            isProp: false,
+            typeNumeric: 11,
+            number: 66,
+            hasSkin: false,
+            new ObservableCollection<GTexture> { texture });
+
+        drawable.ApplyDrawableType("hair");
+
+        Assert.Equal("hair", drawable.Group);
+        Assert.Equal("hair_066_u", drawable.Name);
+        Assert.Equal(2, texture.TypeNumeric);
+        Assert.Equal(66, texture.Number);
+        Assert.Equal("hair_diff_066_a_uni", texture.DisplayName);
+    }
+
+    [Fact]
     public void HasSkin_UpdatesNameAndChildTextures()
     {
         var texture = CreateTexture(typeNumeric: 11, number: 0);

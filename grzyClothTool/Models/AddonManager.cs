@@ -870,6 +870,8 @@ namespace grzyClothTool.Models
                 // mark as new, to make it easier to find
                 drawable.IsNew = true;
                 drawable.Number = nextNumber;
+                drawable.Order = nextNumber;
+                drawable.Group = drawable.TypeName;
                 drawable.SetDrawableName();
 
                 currentAddon.Drawables.Add(drawable);

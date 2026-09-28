@@ -53,4 +53,23 @@ public class EnumHelperTests
         Assert.Contains("male", EnumHelper.GetSexTypeList());
         Assert.Contains("female", EnumHelper.GetSexTypeList());
     }
+
+    [Theory]
+    [InlineData("hair", false, "hair")]
+    [InlineData("JBIB", false, "jbib")]
+    [InlineData("p_head", true, "p_head")]
+    public void TryGetTypeNameFromGroup_RecognizesComponentGroups(string group, bool isProp, string expected)
+    {
+        Assert.True(EnumHelper.TryGetTypeNameFromGroup(group, isProp, out var typeName));
+        Assert.Equal(expected, typeName);
+    }
+
+    [Theory]
+    [InlineData("summer", false)]
+    [InlineData("hair", true)]
+    [InlineData("p_head", false)]
+    public void TryGetTypeNameFromGroup_RejectsCustomOrIncompatibleGroups(string group, bool isProp)
+    {
+        Assert.False(EnumHelper.TryGetTypeNameFromGroup(group, isProp, out _));
+    }
 }

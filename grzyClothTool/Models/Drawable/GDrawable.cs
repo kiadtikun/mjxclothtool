@@ -616,8 +616,8 @@ public class GDrawable : INotifyPropertyChanged
         //texture number needs to be updated too
         foreach (var txt in Textures)
         {
-            txt.Number = Number;
             txt.TypeNumeric = TypeNumeric;
+            txt.Number = Number;
         }
 
         OnPropertyChanged(nameof(Name));
@@ -633,14 +633,13 @@ public class GDrawable : INotifyPropertyChanged
 
     public void ChangeDrawableType(string newType)
     {
-        var newTypeNumeric = EnumHelper.GetValue(newType, IsProp);
         var reserved = new GDrawableReserved(Sex, IsProp, TypeNumeric, Number);
+        reserved.Group = string.IsNullOrWhiteSpace(Group) ? TypeName : Group;
         var index = MainWindow.AddonManager.SelectedAddon.Drawables.IndexOf(this);
 
         DuplicateDetector.UnregisterDrawable(this);
 
-        // change drawable to new type
-        TypeNumeric = newTypeNumeric;
+        ApplyDrawableType(newType);
 
         // replace drawable with reserved in the same place
         MainWindow.AddonManager.SelectedAddon.Drawables[index] = reserved;
@@ -648,6 +647,14 @@ public class GDrawable : INotifyPropertyChanged
         // re-add changed drawable
         MainWindow.AddonManager.AddDrawable(this);
         MainWindow.AddonManager.Addons.Sort(true);
+    }
+
+    public void ApplyDrawableType(string newType)
+    {
+        TypeNumeric = EnumHelper.GetValue(newType, IsProp);
+        TypeName = newType;
+        Group = newType;
+        SetDrawableName();
     }
 
     public void ChangeDrawableSex(string newSex)

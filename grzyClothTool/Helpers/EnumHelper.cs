@@ -7,6 +7,14 @@ using static grzyClothTool.Enums;
 namespace grzyClothTool.Helpers;
 public static class EnumHelper
 {
+    public static bool TryGetTypeNameFromGroup(string groupName, bool isProp, out string typeName)
+    {
+        var availableTypes = isProp ? GetPropTypeList() : GetDrawableTypeList();
+        typeName = availableTypes.FirstOrDefault(name =>
+            name.Equals(groupName, StringComparison.OrdinalIgnoreCase));
+        return typeName != null;
+    }
+
     public static string GetName(int type, bool isProp)
     {
         Type enumType = isProp ? typeof(Enums.PropNumbers) : typeof(Enums.ComponentNumbers);

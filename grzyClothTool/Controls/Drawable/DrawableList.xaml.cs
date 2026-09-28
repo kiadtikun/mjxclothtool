@@ -911,7 +911,17 @@ namespace grzyClothTool.Controls
                 {
                     if (droppedOnGroupHeader && targetGroupName != null)
                     {
-                        if (droppedData.Group != targetGroupName)
+                        if (EnumHelper.TryGetTypeNameFromGroup(targetGroupName, droppedData.IsProp, out var targetTypeName))
+                        {
+                            if (!targetTypeName.Equals(droppedData.TypeName, StringComparison.OrdinalIgnoreCase))
+                            {
+                                var oldType = droppedData.TypeName;
+                                droppedData.ChangeDrawableType(targetTypeName);
+                                LogHelper.Log($"Drawable moved from component '{oldType}' to '{targetTypeName}'");
+                                SaveHelper.SetUnsavedChanges(true);
+                            }
+                        }
+                        else if (droppedData.Group != targetGroupName)
                         {
                             var oldGroup = droppedData.Group;
                             droppedData.Group = targetGroupName;
