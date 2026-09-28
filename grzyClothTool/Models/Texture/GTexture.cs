@@ -174,6 +174,12 @@ public class GTexture : INotifyPropertyChanged
 
     public bool IsPreviewDisabled { get; set; }
 
+    [JsonIgnore]
+    public bool CanEditYtdTextureName =>
+        string.Equals(Extension, ".ytd", StringComparison.OrdinalIgnoreCase) &&
+        TxtDetails != null &&
+        !IsPreviewDisabled;
+
     public GTexture(Guid id, string filePath, int typeNumeric, int number, int txtNumber, bool hasSkin, bool isProp)
     {
         IsLoading = true;
@@ -218,6 +224,7 @@ public class GTexture : INotifyPropertyChanged
 
                     TxtDetails = t.Result;
                     OnPropertyChanged(nameof(TxtDetails));
+                    OnPropertyChanged(nameof(CanEditYtdTextureName));
 
                     TxtDetails.Validate();
                 }
@@ -320,11 +327,23 @@ public class GTexture : INotifyPropertyChanged
             {
                 TxtDetails = result;
                 OnPropertyChanged(nameof(TxtDetails));
+                OnPropertyChanged(nameof(CanEditYtdTextureName));
                 TxtDetails.Validate();
             }
         }
 
         IsLoading = false;
+    }
+
+    public async Task RenameYtdTextureAsync(string newName)
+    {
+        var normalizedName = await YtdTextureNameHelper.RenameFirstTextureAsync(FullFilePath, newName);
+
+        if (TxtDetails != null)
+        {
+            TxtDetails.Name = normalizedName;
+            OnPropertyChanged(nameof(TxtDetails));
+        }
     }
 
     private void UpdateDisplayName()

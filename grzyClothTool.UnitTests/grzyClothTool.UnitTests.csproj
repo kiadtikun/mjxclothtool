@@ -32,4 +32,10 @@
     </Reference>
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="..\grzyClothTool\Resources\reservedTexture.ytd"
+          Link="TestData\reservedTexture.ytd"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

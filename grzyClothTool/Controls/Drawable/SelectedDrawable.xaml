@@ -1266,7 +1266,13 @@
                                             BorderThickness="0,1,0,0"
                                             CornerRadius="0,0,8,8"
                                             Padding="12,8">
-                                        <StackPanel Orientation="Horizontal">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" Orientation="Horizontal">
                                             <Button x:Name="AddTexturesButton"
                                                     Content="ADD TEXTURES"
                                                     FontSize="11"
@@ -1290,9 +1296,28 @@
                                                                    Width="14" 
                                                                    Height="14"
                                                                    Foreground="{DynamicResource Brush900}" />
-                                            </Button>
-                                        </StackPanel>
-                                    </Border>
+                                             </Button>
+                                         </StackPanel>
+
+                                            <StackPanel Grid.Column="2"
+                                                        Orientation="Horizontal"
+                                                        VerticalAlignment="Center"
+                                                        Visibility="{Binding SelectedTxt.CanEditYtdTextureName, ElementName=Control, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                <TextBlock Text="YTD texture name"
+                                                           FontSize="11"
+                                                           Foreground="{DynamicResource Brush700}"
+                                                           VerticalAlignment="Center"
+                                                           Margin="8,0,8,0" />
+                                                <TextBox Width="220"
+                                                         Height="26"
+                                                         Padding="6,3"
+                                                         VerticalContentAlignment="Center"
+                                                         Text="{Binding SelectedTxt.TxtDetails.Name, ElementName=Control, Mode=OneWay}"
+                                                         LostKeyboardFocus="YtdTextureName_LostKeyboardFocus"
+                                                         KeyDown="YtdTextureName_KeyDown" />
+                                            </StackPanel>
+                                        </Grid>
+                                     </Border>
                                 </Grid>
                             </Border>
                         </Grid>

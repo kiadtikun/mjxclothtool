@@ -164,6 +164,71 @@ namespace grzyClothTool.Controls
             }
         }
 
+        private async void YtdTextureName_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+        {
+            if (sender is TextBox textBox)
+            {
+                await CommitYtdTextureNameAsync(textBox);
+            }
+        }
+
+        private async void YtdTextureName_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (sender is not TextBox textBox)
+            {
+                return;
+            }
+
+            if (e.Key == Key.Enter)
+            {
+                e.Handled = true;
+                await CommitYtdTextureNameAsync(textBox);
+                Keyboard.ClearFocus();
+            }
+            else if (e.Key == Key.Escape)
+            {
+                e.Handled = true;
+                textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateTarget();
+                Keyboard.ClearFocus();
+            }
+        }
+
+        private async Task CommitYtdTextureNameAsync(TextBox textBox)
+        {
+            var texture = SelectedTxt;
+            if (texture == null || !texture.CanEditYtdTextureName ||
+                SelectedTextures == null || SelectedTextures.Count != 1)
+            {
+                return;
+            }
+
+            var newName = textBox.Text?.Trim() ?? string.Empty;
+            if (string.Equals(newName, texture.TxtDetails?.Name, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            textBox.IsEnabled = false;
+            try
+            {
+                await texture.RenameYtdTextureAsync(newName);
+                textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateTarget();
+                SaveHelper.SetUnsavedChanges(true);
+                CWHelper.SendDrawableUpdateToPreview(new RoutedEventArgs());
+                LogHelper.Log($"Renamed YTD texture to '{newName}'", Views.LogType.Info);
+            }
+            catch (Exception ex)
+            {
+                textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateTarget();
+                LogHelper.Log($"Failed to rename YTD texture: {ex.Message}", Views.LogType.Error);
+                Show($"Failed to rename YTD texture: {ex.Message}", "Error", CustomMessageBoxButtons.OKOnly, CustomMessageBoxIcon.Error);
+            }
+            finally
+            {
+                textBox.IsEnabled = true;
+            }
+        }
+
 
         private void TexturePreview_Click(object sender, RoutedEventArgs e)
         {
