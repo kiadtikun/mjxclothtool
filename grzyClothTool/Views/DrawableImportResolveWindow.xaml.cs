@@ -115,6 +115,7 @@ namespace grzyClothTool.Views
 
         private readonly bool _showGender;
         private readonly bool _showDrawableProperties;
+        private readonly bool _reviewDroppedFiles;
         private bool _isApplyingBulkUpdate;
 
         public List<string> GenderTypes { get; set; } = ["Female", "Male"];
@@ -134,6 +135,11 @@ namespace grzyClothTool.Views
         {
             get
             {
+                if (_reviewDroppedFiles)
+                {
+                    return "Review dropped drawable files";
+                }
+
                 var unresolvedCount = Items.Count(x => !x.IsResolved);
                 return unresolvedCount == 1
                     ? "Resolve 1 drawable before import"
@@ -144,6 +150,11 @@ namespace grzyClothTool.Views
         {
             get
             {
+                if (_reviewDroppedFiles)
+                {
+                    return "Review Gender and Drawable Component. Select rows and use Apply to change multiple files before import.";
+                }
+
                 var parts = new List<string>();
                 if (_showGender)
                 {
@@ -252,12 +263,15 @@ namespace grzyClothTool.Views
             Dictionary<string, Enums.SexType?> detectedGenders = null,
             Dictionary<string, (bool IsProp, int DrawableType)?> detectedDrawableTypes = null,
             bool showGender = false,
-            bool showDrawableProperties = true)
+            bool showDrawableProperties = true,
+            bool reviewDroppedFiles = false)
         {
             InitializeComponent();
 
             _showGender = showGender;
             _showDrawableProperties = showDrawableProperties;
+            _reviewDroppedFiles = reviewDroppedFiles;
+            ShowResolvedItems = reviewDroppedFiles;
 
             foreach (var path in paths)
             {
@@ -272,11 +286,19 @@ namespace grzyClothTool.Views
                     drawableType,
                     _showGender,
                     _showDrawableProperties);
+                item.IsSelected = reviewDroppedFiles;
                 item.PropertyChanged += ImportItem_PropertyChanged;
                 Items.Add(item);
             }
 
             DataContext = this;
+
+            if (reviewDroppedFiles)
+            {
+                SelectedAssetType = "Component";
+                SetDrawableTypeOptions(SelectedAssetType);
+                OnItemsChanged();
+            }
         }
 
         private void AssetType_IsUpdated(object sender, Controls.UpdatedEventArgs e)

@@ -283,7 +283,10 @@ namespace grzyClothTool.Views
             }
         }
 
-        private static async Task AddDrawablesByDetectedGenderAsync(IEnumerable<string> filePaths, Enums.SexType? forcedGender = null)
+        private static async Task AddDrawablesByDetectedGenderAsync(
+            IEnumerable<string> filePaths,
+            Enums.SexType? forcedGender = null,
+            bool reviewDroppedFiles = false)
         {
             var files = filePaths.Distinct().ToList();
             if (files.Count == 0)
@@ -291,7 +294,7 @@ namespace grzyClothTool.Views
                 return;
             }
 
-            var resolution = ResolveDrawableImport(files, forcedGender);
+            var resolution = ResolveDrawableImport(files, forcedGender, reviewDroppedFiles);
             if (resolution == null)
             {
                 LogHelper.Log("Adding drawables cancelled while resolving import settings.", LogType.Info);
@@ -350,7 +353,10 @@ namespace grzyClothTool.Views
             return gender == Enums.SexType.male ? "Male" : "Female";
         }
 
-        private static DrawableImportResolution ResolveDrawableImport(IEnumerable<string> files, Enums.SexType? forcedGender)
+        private static DrawableImportResolution ResolveDrawableImport(
+            IEnumerable<string> files,
+            Enums.SexType? forcedGender,
+            bool reviewDroppedFiles = false)
         {
             var fileList = files.ToList();
             var detectedGenders = fileList.ToDictionary(
@@ -360,8 +366,10 @@ namespace grzyClothTool.Views
                 file => file,
                 file => FileHelper.TryResolveDrawableTypeFromFileName(file));
 
-            var needsGender = !forcedGender.HasValue && detectedGenders.Values.Any(x => !x.HasValue);
-            var needsDrawableProperties = detectedDrawableTypes.Values.Any(x => !x.HasValue);
+            var needsGender = reviewDroppedFiles ||
+                              (!forcedGender.HasValue && detectedGenders.Values.Any(x => !x.HasValue));
+            var needsDrawableProperties = reviewDroppedFiles ||
+                                          detectedDrawableTypes.Values.Any(x => !x.HasValue);
 
             if (!needsGender && !needsDrawableProperties)
             {
@@ -377,7 +385,8 @@ namespace grzyClothTool.Views
                 detectedGenders,
                 detectedDrawableTypes,
                 needsGender,
-                needsDrawableProperties)
+                needsDrawableProperties,
+                reviewDroppedFiles)
             {
                 Owner = System.Windows.Application.Current.MainWindow
             };
@@ -727,7 +736,7 @@ namespace grzyClothTool.Views
                     return;
                 }
 
-                await AddDrawablesByDetectedGenderAsync(accessibleFiles);
+                await AddDrawablesByDetectedGenderAsync(accessibleFiles, reviewDroppedFiles: true);
             }
             catch (Exception ex)
             {
