@@ -1,4 +1,4 @@
-# grzyClothTool (WIP)
+# mjxClothTool (WIP)
 
 **_Please be aware that this tool is still in a "WORK IN PROGRESS" state. It is likely that you will encounter bugs, missing features or functionality issues._**
 
@@ -6,12 +6,12 @@
   <img src="https://github.com/grzybeek/grzyClothTool/assets/40837847/30c72912-8828-4fa8-a84f-6f27a1f8eb5f">
 </p>
 
-**grzyClothTool** is a free tool to easily create and manage your GTA5 addon clothing packs.
+**mjxClothTool** is a free tool to easily create and manage your GTA5 addon clothing packs.
 Now you can do _almost_ everything you could do before with _other available tools_, but now without spending any money!
 
 ##
 
-# Why choose grzyClothTool?
+# Why choose mjxClothTool?
 
 - Exclusive features
   - Easily preview your textures

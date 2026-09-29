@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "mjxClothTool": {
+      "commandName": "Project",
+      "nativeDebugging": true
+    }
+  }
+}
