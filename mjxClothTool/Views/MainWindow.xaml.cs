@@ -631,6 +631,11 @@ namespace mjxClothTool
             inspector.ShowDialog();
         }
 
+        private void OptimizeTextures_Click(object sender, RoutedEventArgs e)
+        {
+            new BulkOptimizeWindow { Owner = this }.ShowDialog();
+        }
+
         private static void TempFoldersCleanup()
         {
             // At the start of app we can remove temp folders from previous session

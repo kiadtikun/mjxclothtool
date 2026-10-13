@@ -44,6 +44,8 @@
             <MenuItem Header="_View" Tag="View">
                 <MenuItem Header="_Logs" Tag="Logs" Click="LogsOpen_Click" />
                 <MenuItem Header="_Duplicate Inspector" Tag="DuplicateInspector" Click="DuplicateInspector_Click" />
+                <Separator />
+                <MenuItem Header="_Optimize Textures" Click="OptimizeTextures_Click" />
             </MenuItem>
 
             <MenuItem Header="" IsEnabled="False">
